@@ -795,50 +795,149 @@ body.dark .badge-free { background: #2a1a00; color: #f0a040; }
   color: var(--crimson);
 }
 
-/* Listing tooltip */
-.listing-tooltip {
+/* ── Listing card wrapper ── */
+.listing-card-wrapper {
+  position: relative;
+}
+
+/* Image container needs relative positioning for absolute children */
+.listing-card-image {
+  position: relative;
+}
+
+/* ── Desc zone: hover trigger wrapping drawer + chevron strip ── */
+/* Anchored at bottom of image, grows upward as drawer expands */
+.card-desc-zone {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  z-index: 100;
-  pointer-events: none;
-  animation: tooltipFadeIn 0.2s ease;
+  z-index: 3;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 
-/* Tooltip animation */
-@keyframes tooltipFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.tooltip-title {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: white;
-  margin-bottom: 0.5rem;
-}
-
-.tooltip-description {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
-  line-height: 1.6;
-  max-height: 120px;
+/* ── Description drawer ── */
+.card-desc-drawer {
+  background: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
   overflow: hidden;
-  text-overflow: ellipsis;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.22s ease;
+}
+
+body.dark .card-desc-drawer {
+  background: rgba(18, 18, 18, 0.92);
+}
+
+.card-desc-drawer.open {
+  max-height: 108px;
+  opacity: 1;
+}
+
+.card-desc-drawer p {
+  padding: 0.75rem 1rem 0.8rem;
+  font-size: 0.79rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 5;
-  line-clamp: 5;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Chevron strip ── */
+/* Always-visible bar at the bottom of the image */
+.card-chevron-strip {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.07), transparent);
+}
+
+/* ── Chevron pill ── */
+.card-chevron {
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  width: 30px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.38s cubic-bezier(0.34, 1.2, 0.64, 1);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.14);
+  pointer-events: none; /* zone handles hover */
+}
+
+/* Flip when open */
+.card-chevron.open {
+  transform: rotate(180deg);
+  color: var(--crimson);
+}
+
+body.dark .card-chevron {
+  background: rgba(35, 35, 35, 0.85);
+  color: #999;
+}
+
+body.dark .card-chevron.open {
+  color: var(--crimson);
+}
+
+/* ── Heart button ── */
+.card-heart-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ccc;
+  transition: color 0.18s ease, background 0.18s ease, transform 0.15s ease;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.14);
+  z-index: 10;
+}
+
+.card-heart-btn:hover {
+  color: var(--crimson);
+  transform: scale(1.12);
+}
+
+.card-heart-btn.saved {
+  color: var(--crimson);
+}
+
+.card-heart-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+body.dark .card-heart-btn {
+  background: rgba(30, 30, 30, 0.85);
+  color: #555;
+}
+
+body.dark .card-heart-btn:hover,
+body.dark .card-heart-btn.saved {
+  color: var(--crimson);
 }
 
 /* Responsive tweaks */
