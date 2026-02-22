@@ -189,9 +189,8 @@ http://localhost:5173
 
 ## Future Improvements
 
-* Real WSU email authentication
-* Payment integration (Stripe)
 * Admin dashboard
 * Report / moderation system
 * Push notifications
 * Mobile app version
+* User rating system
