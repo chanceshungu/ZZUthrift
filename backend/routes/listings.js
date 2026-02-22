@@ -4,25 +4,18 @@ const Listing = require('../models/Listing');
 const { getEmbedding, cosineSimilarity } = require('../utils/embedding');
 const authMiddleware = require('../middleware/auth');
 
-// Get all listings with semantic search
+// Helper to check if embeddings are available
+let embeddingsAvailable = process.env.USE_EMBEDDINGS === 'true';
+
+// GET all listings with optional semantic search
 router.get('/', async (req, res) => {
   try {
     const { search, category, semantic } = req.query;
 
-    // Traditional search
-    if (!semantic) {
+    // No search query - return all listings
+    if (!search) {
       let query = { status: 'Available' };
-
-      if (search) {
-        query.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-        ];
-      }
-
-      if (category && category !== 'All') {
-        query.category = category;
-      }
+      if (category && category !== 'All') query.category = category;
 
       const listings = await Listing.find(query)
         .populate('seller', 'name email')
@@ -31,58 +24,81 @@ router.get('/', async (req, res) => {
       return res.json(listings);
     }
 
-    // Semantic search
-    if (!search) {
-      return res.status(400).json({ message: 'Search query required for semantic search' });
-    }
+    // Semantic search (only if embeddings are available)
+    if (semantic === 'true' && embeddingsAvailable) {
+      try {
+        const searchEmbedding = await getEmbedding(search);
 
-    try {
-      const searchEmbedding = await getEmbedding(search);
+        let listings = await Listing.find({ status: 'Available' })
+          .populate('seller', 'name email');
 
-      // Get all available listings
-      let listings = await Listing.find({ status: 'Available' })
-        .populate('seller', 'name email');
+        if (category && category !== 'All') {
+          listings = listings.filter(l => l.category === category);
+        }
 
-      if (category && category !== 'All') {
-        listings = listings.filter(l => l.category === category);
+        // Score by semantic similarity
+        const scored = listings
+          .map(listing => {
+            const titleSim = listing.titleEmbedding
+              ? cosineSimilarity(searchEmbedding, listing.titleEmbedding)
+              : 0;
+            const descSim = listing.descriptionEmbedding
+              ? cosineSimilarity(searchEmbedding, listing.descriptionEmbedding)
+              : 0;
+
+            return {
+              ...listing.toObject(),
+              semanticScore: (titleSim * 0.6) + (descSim * 0.4),
+            };
+          })
+          .filter(l => l.semanticScore > 0.3)
+          .sort((a, b) => b.semanticScore - a.semanticScore);
+
+        return res.json(scored);
+      } catch (err) {
+        // Embeddings failed - fall back to keyword search silently
+        embeddingsAvailable = false;
+        console.warn('Semantic search unavailable, falling back to keyword search.');
       }
-
-      // Score by semantic similarity
-      const scored = listings.map(listing => {
-        const titleSim = listing.titleEmbedding
-          ? cosineSimilarity(searchEmbedding, listing.titleEmbedding)
-          : 0;
-        const descSim = listing.descriptionEmbedding
-          ? cosineSimilarity(searchEmbedding, listing.descriptionEmbedding)
-          : 0;
-
-        return {
-          ...listing.toObject(),
-          semanticScore: (titleSim * 0.6) + (descSim * 0.4),
-        };
-      });
-
-      // Sort by semantic score
-      scored.sort((a, b) => b.semanticScore - a.semanticScore);
-
-      res.json(scored.filter(l => l.semanticScore > 0.3));
-    } catch (err) {
-      console.error('Semantic search error:', err);
-      res.status(500).json({ message: 'Semantic search failed' });
     }
+
+    // Keyword search fallback
+    let query = { status: 'Available' };
+    query.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+    ];
+    if (category && category !== 'All') query.category = category;
+
+    const listings = await Listing.find(query)
+      .populate('seller', 'name email')
+      .sort({ createdAt: -1 });
+
+    return res.json(listings);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching listings', error: err.message });
   }
 });
 
-// Create listing with embeddings
+// POST create listing
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { title, description, category, price, type, images } = req.body;
 
-    // Get embeddings
-    const titleEmbedding = await getEmbedding(title);
-    const descriptionEmbedding = await getEmbedding(description);
+    let titleEmbedding = null;
+    let descriptionEmbedding = null;
+
+    // Only generate embeddings if available
+    if (embeddingsAvailable) {
+      try {
+        titleEmbedding = await getEmbedding(title);
+        descriptionEmbedding = await getEmbedding(description);
+      } catch (embeddingErr) {
+        // Disable embeddings silently for the rest of the session
+        embeddingsAvailable = false;
+        console.warn('Embeddings unavailable, listing created without semantic data.');
+      }
+    }
 
     const listing = new Listing({
       title,
@@ -105,10 +121,11 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Get single listing
+// GET single listing
 router.get('/:id', async (req, res) => {
   try {
-    const listing = await Listing.findById(req.params.id).populate('seller', 'name email');
+    const listing = await Listing.findById(req.params.id)
+      .populate('seller', 'name email');
     if (!listing) return res.status(404).json({ message: 'Listing not found' });
     res.json(listing);
   } catch (err) {
@@ -116,7 +133,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Update listing
+// PUT update listing
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id);
@@ -128,10 +145,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     Object.assign(listing, req.body);
 
-    // Re-embed if title/description changed
-    if (req.body.title || req.body.description) {
-      listing.titleEmbedding = await getEmbedding(listing.title);
-      listing.descriptionEmbedding = await getEmbedding(listing.description);
+    // Re-embed if title/description changed and embeddings are available
+    if (embeddingsAvailable && (req.body.title || req.body.description)) {
+      try {
+        listing.titleEmbedding = await getEmbedding(listing.title);
+        listing.descriptionEmbedding = await getEmbedding(listing.description);
+      } catch (err) {
+        embeddingsAvailable = false;
+        console.warn('Embeddings unavailable, listing updated without semantic data.');
+      }
     }
 
     await listing.save();
@@ -141,7 +163,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Delete listing
+// DELETE listing
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id);

@@ -31,6 +31,9 @@ function Home() {
       const params = {};
       if (search) params.search = search;
       if (activeCategory !== 'All') params.category = activeCategory;
+      // ALWAYS use semantic search when there's a search query
+      if (search) params.semantic = 'true';
+
       const res = await api.get('/listings', { params });
       setListings(res.data);
     } catch (err) {
@@ -53,7 +56,7 @@ function Home() {
       {/* ── LANDING SECTION ── */}
       <div className="landing-section">
         <div className={`landing-content ${scrolled ? 'faded' : ''}`}>
-          <div className="landing-badge"> Welcome to ZZU Thrift </div>
+          <div className="landing-badge">Welcome to ZZU Thrift</div>
           <h1 className="landing-title">
             Buy. Sell. Trade.<br />
             <span>On Campus.</span>
@@ -98,6 +101,7 @@ function Home() {
             />
             <button type="submit">Search</button>
           </form>
+
           <div className="filters">
             {CATEGORIES.map(cat => (
               <button
@@ -124,7 +128,7 @@ function Home() {
           ) : listings.length === 0 ? (
             <div className="empty-state">
               <div className="icon">🛍️</div>
-              <p>No listings yet. Be the first to post something!</p>
+              <p>No listings found. Try a different search or category!</p>
             </div>
           ) : (
             <div className="listings-grid">

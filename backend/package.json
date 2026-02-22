@@ -12,8 +12,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.1.4",
     "jsonwebtoken": "^9.0.0",
-    "@magic-sdk/admin": "^6.4.0",
-    "openai": "^4.20.0"
+    "@magic-sdk/admin": "^2.8.2",
+    "openai": "^4.52.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
