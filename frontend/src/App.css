@@ -1365,6 +1365,7 @@ body.dark .card-desc-drawer {
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   border-top: 1px solid var(--border);
