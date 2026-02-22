@@ -66,8 +66,8 @@ function ListingCard({ listing }) {
     <div className="listing-card-wrapper">
       <Link to={`/listing/${listing._id}`} className="listing-card">
         <div className="listing-card-image">
-          {listing.image
-            ? <img src={listing.image} alt={listing.title} />
+          {listing.images && listing.images.length > 0
+            ? <img src={listing.images[0]} alt={listing.title} />
             : <span>{icon}</span>
           }
 

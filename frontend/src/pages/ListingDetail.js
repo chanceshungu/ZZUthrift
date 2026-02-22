@@ -154,8 +154,8 @@ function ListingDetail() {
 
         {/* Left: image */}
         <div className="detail-image">
-          {listing.image
-            ? <img src={listing.image} alt={listing.title} />
+          {listing.images && listing.images.length > 0
+            ? <img src={listing.images[0]} alt={listing.title} />
             : (
               <div className="detail-image-placeholder">
                 <ImagePlaceholderIcon />

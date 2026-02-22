@@ -121,6 +121,32 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
+// GET listings by user (must be before /:id)
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const listings = await Listing.find({ seller: req.params.userId })
+      .populate('seller', 'name email')
+      .sort({ createdAt: -1 });
+    res.json(listings);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching user listings', error: err.message });
+  }
+});
+
+// GET saved listings (must be before /:id)
+router.get('/saved/all', authMiddleware, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id).populate({
+      path: 'savedListings',
+      populate: { path: 'seller', select: 'name email' }
+    });
+    res.json(user.savedListings || []);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching saved listings', error: err.message });
+  }
+});
+
 // GET single listing
 router.get('/:id', async (req, res) => {
   try {
@@ -130,6 +156,24 @@ router.get('/:id', async (req, res) => {
     res.json(listing);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching listing', error: err.message });
+  }
+});
+
+// POST toggle save listing
+router.post('/:id/save', authMiddleware, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id);
+    const idx = user.savedListings.indexOf(req.params.id);
+    if (idx === -1) {
+      user.savedListings.push(req.params.id);
+    } else {
+      user.savedListings.splice(idx, 1);
+    }
+    await user.save();
+    res.json({ saved: idx === -1 });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saving listing', error: err.message });
   }
 });
 

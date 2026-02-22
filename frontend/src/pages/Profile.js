@@ -78,7 +78,7 @@ function Profile() {
             <div key={listing._id} className="listing-card" style={{ cursor: 'default' }}>
               <Link to={`/listing/${listing._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="listing-card-image">
-                  {listing.image ? <img src={listing.image} alt={listing.title} /> : <span>📦</span>}
+                  {listing.images && listing.images.length > 0 ? <img src={listing.images[0]} alt={listing.title} /> : <span>📦</span>}
                 </div>
                 <div className="listing-card-body">
                   <div className="listing-card-title">{listing.title}</div>

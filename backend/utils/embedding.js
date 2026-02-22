@@ -1,10 +1,12 @@
 const OpenAI = require('openai');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 async function getEmbedding(text) {
+  if (!openai) throw new Error('OpenAI client not initialized');
   try {
     const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',

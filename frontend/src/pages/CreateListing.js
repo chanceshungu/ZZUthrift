@@ -30,7 +30,9 @@ function CreateListing() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API}/listings`, form, {
+      const payload = { ...form, images: form.image ? [form.image] : [] };
+      delete payload.image;
+      await axios.post(`${API}/listings`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/');

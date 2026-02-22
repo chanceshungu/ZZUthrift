@@ -159,8 +159,7 @@ function Navbar() {
                   </button>
                 </div>
                 <div className="nav-dropdown-divider" />
-                <Link to="/login" className="nav-dropdown-item">Log in</Link>
-                <Link to="/register" className="nav-dropdown-item">Join ZZU Thrift</Link>
+                <Link to="/login" className="nav-dropdown-item">Log in / Sign up</Link>
               </>
             )}
           </div>
