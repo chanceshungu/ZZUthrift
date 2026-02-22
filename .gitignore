@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Dependencies
 node_modules/
 frontend/node_modules/
@@ -48,3 +49,7 @@ coverage/
 # Misc
 *.tmp
 *.temp
+=======
+.env
+node_modules/
+>>>>>>> 969159f310ac88452f04e10b2d8daec06ab60bb2

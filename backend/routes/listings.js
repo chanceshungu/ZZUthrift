@@ -4,7 +4,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 
 // Get all listings (with optional filters)
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const { category, type, search, status } = req.query;
     const query = {};
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get single listing
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id).populate('seller', 'name email bio');
     if (!listing) return res.status(404).json({ message: 'Listing not found' });
