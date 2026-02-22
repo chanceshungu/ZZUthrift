@@ -1,50 +1,118 @@
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
 const Listing = require('../models/Listing');
-const User = require('../models/User');
+const { getEmbedding, cosineSimilarity } = require('../utils/embedding');
 const authMiddleware = require('../middleware/auth');
 
-// Get all listings (with optional filters)
-router.get('/', authMiddleware, async (req, res) => {
+// Get all listings with semantic search
+router.get('/', async (req, res) => {
   try {
-    const { category, type, search, status } = req.query;
-    const query = {};
-    if (category) query.category = category;
-    if (type) query.type = type;
-    if (status) query.status = status;
-    else query.status = 'Available';
-    if (search) query.title = { $regex: search, $options: 'i' };
-    const listings = await Listing.find(query)
-      .populate('seller', 'name email')
-      .sort({ createdAt: -1 });
-    res.json(listings);
+    const { search, category, semantic } = req.query;
+
+    // Traditional search
+    if (!semantic) {
+      let query = { status: 'Available' };
+
+      if (search) {
+        query.$or = [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      if (category && category !== 'All') {
+        query.category = category;
+      }
+
+      const listings = await Listing.find(query)
+        .populate('seller', 'name email')
+        .sort({ createdAt: -1 });
+
+      return res.json(listings);
+    }
+
+    // Semantic search
+    if (!search) {
+      return res.status(400).json({ message: 'Search query required for semantic search' });
+    }
+
+    try {
+      const searchEmbedding = await getEmbedding(search);
+
+      // Get all available listings
+      let listings = await Listing.find({ status: 'Available' })
+        .populate('seller', 'name email');
+
+      if (category && category !== 'All') {
+        listings = listings.filter(l => l.category === category);
+      }
+
+      // Score by semantic similarity
+      const scored = listings.map(listing => {
+        const titleSim = listing.titleEmbedding
+          ? cosineSimilarity(searchEmbedding, listing.titleEmbedding)
+          : 0;
+        const descSim = listing.descriptionEmbedding
+          ? cosineSimilarity(searchEmbedding, listing.descriptionEmbedding)
+          : 0;
+
+        return {
+          ...listing.toObject(),
+          semanticScore: (titleSim * 0.6) + (descSim * 0.4),
+        };
+      });
+
+      // Sort by semantic score
+      scored.sort((a, b) => b.semanticScore - a.semanticScore);
+
+      res.json(scored.filter(l => l.semanticScore > 0.3));
+    } catch (err) {
+      console.error('Semantic search error:', err);
+      res.status(500).json({ message: 'Semantic search failed' });
+    }
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Error fetching listings', error: err.message });
+  }
+});
+
+// Create listing with embeddings
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { title, description, category, price, type, images } = req.body;
+
+    // Get embeddings
+    const titleEmbedding = await getEmbedding(title);
+    const descriptionEmbedding = await getEmbedding(description);
+
+    const listing = new Listing({
+      title,
+      description,
+      category,
+      price,
+      type,
+      images,
+      seller: req.user._id,
+      titleEmbedding,
+      descriptionEmbedding,
+    });
+
+    await listing.save();
+    await listing.populate('seller', 'name email');
+
+    res.status(201).json(listing);
+  } catch (err) {
+    res.status(400).json({ message: 'Error creating listing', error: err.message });
   }
 });
 
 // Get single listing
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const listing = await Listing.findById(req.params.id).populate('seller', 'name email bio');
+    const listing = await Listing.findById(req.params.id).populate('seller', 'name email');
     if (!listing) return res.status(404).json({ message: 'Listing not found' });
     res.json(listing);
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Create listing
-router.post('/', authMiddleware, async (req, res) => {
-  try {
-    const { title, description, price, category, condition, type, image, location } = req.body;
-    const listing = await Listing.create({
-      title, description, price, category, condition, type, image, location,
-      seller: req.user._id
-    });
-    await listing.populate('seller', 'name email');
-    res.status(201).json(listing);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Error fetching listing', error: err.message });
   }
 });
 
@@ -53,13 +121,23 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id);
     if (!listing) return res.status(404).json({ message: 'Listing not found' });
-    if (listing.seller.toString() !== req.user._id.toString())
+
+    if (listing.seller.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
-    const updated = await Listing.findByIdAndUpdate(req.params.id, req.body, { new: true })
-      .populate('seller', 'name email');
-    res.json(updated);
+    }
+
+    Object.assign(listing, req.body);
+
+    // Re-embed if title/description changed
+    if (req.body.title || req.body.description) {
+      listing.titleEmbedding = await getEmbedding(listing.title);
+      listing.descriptionEmbedding = await getEmbedding(listing.description);
+    }
+
+    await listing.save();
+    res.json(listing);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(400).json({ message: 'Error updating listing', error: err.message });
   }
 });
 
@@ -68,55 +146,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id);
     if (!listing) return res.status(404).json({ message: 'Listing not found' });
-    if (listing.seller.toString() !== req.user._id.toString())
+
+    if (listing.seller.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
-    await listing.deleteOne();
+    }
+
+    await Listing.deleteOne({ _id: req.params.id });
     res.json({ message: 'Listing deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Get listings by user
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const listings = await Listing.find({ seller: req.params.userId })
-      .populate('seller', 'name email')
-      .sort({ createdAt: -1 });
-    res.json(listings);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Save / unsave a listing
-router.post('/:id/save', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-    const listingId = req.params.id;
-    const isSaved = user.savedListings.includes(listingId);
-    if (isSaved) {
-      user.savedListings = user.savedListings.filter(id => id.toString() !== listingId);
-    } else {
-      user.savedListings.push(listingId);
-    }
-    await user.save();
-    res.json({ saved: !isSaved, savedListings: user.savedListings });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Get saved listings for current user
-router.get('/saved/all', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).populate({
-      path: 'savedListings',
-      populate: { path: 'seller', select: 'name email' }
-    });
-    res.json(user.savedListings);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Error deleting listing', error: err.message });
   }
 });
 
