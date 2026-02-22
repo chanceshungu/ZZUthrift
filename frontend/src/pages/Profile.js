@@ -1,29 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Link } from 'react-router-dom';
-
-const API = 'http://localhost:8000/api';
 
 function Profile() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const token = localStorage.getItem('token');
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      axios.get(`${API}/listings/user/${user.id}`)
+      api.get(`/listings/user/${user.id}`)
         .then(res => setListings(res.data))
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, []);
+  }, [user]);
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.put(`${API}/listings/${id}`, { status }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/listings/${id}`, { status });
       setListings(listings.map(l => l._id === id ? { ...l, status } : l));
     } catch (err) {
       alert('Failed to update status');
@@ -33,9 +28,7 @@ function Profile() {
   const deleteListing = async (id) => {
     if (!window.confirm('Delete this listing?')) return;
     try {
-      await axios.delete(`${API}/listings/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/listings/${id}`);
       setListings(listings.filter(l => l._id !== id));
     } catch (err) {
       alert('Failed to delete');

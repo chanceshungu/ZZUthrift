@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import logo from '../logo.png';
+import { magic } from '../magic';
 
 const API = 'http://localhost:8000/api';
 
@@ -34,10 +35,20 @@ function Navbar() {
     return () => clearInterval(interval);
   }, [token]);
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      // Log out from Magic SDK first
+      await magic.user.logout();
+    } catch (err) {
+      console.error('Magic logout error:', err);
+    }
+    
+    // Clear local storage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/');
+    
+    // Navigate and reload
+    navigate('/login');
     window.location.reload();
   };
 
@@ -69,8 +80,8 @@ function Navbar() {
           </>
         ) : (
           <>
-            <Link to="/login">Login</Link>
-            <Link to="/register" className="btn-sell">Join</Link>
+            {/* Consolidated to a single "Join / Login" flow */}
+            <Link to="/login" className="btn-sell">Sign In / Join</Link>
           </>
         )}
         <button className="theme-toggle" onClick={() => setDark(d => !d)} title="Toggle theme">
@@ -82,4 +93,3 @@ function Navbar() {
 }
 
 export default Navbar;
-

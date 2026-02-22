@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../api';
 import ListingCard from '../components/ListingCard';
 
 const CATEGORIES = ['All', 'Clothing', 'Textbooks', 'Dorm Essentials', 'Electronics', 'Furniture', 'Other'];
-const API = 'http://localhost:8000/api';
 
 function Home() {
   const [listings, setListings] = useState([]);
@@ -32,7 +31,7 @@ function Home() {
       const params = {};
       if (search) params.search = search;
       if (activeCategory !== 'All') params.category = activeCategory;
-      const res = await axios.get(`${API}/listings`, { params });
+      const res = await api.get('/listings', { params });
       setListings(res.data);
     } catch (err) {
       console.error(err);

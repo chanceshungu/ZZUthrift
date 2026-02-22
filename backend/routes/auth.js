@@ -1,57 +1,69 @@
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
 const jwt = require('jsonwebtoken');
+const { Magic } = require('@magic-sdk/admin');
 const User = require('../models/User');
-const authMiddleware = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'zzuthrift_secret_2024';
-const signToken = (id) => jwt.sign({ id }, JWT_SECRET, { expiresIn: '7d' });
+// Initialize Magic Admin SDK
+const magic = new Magic(process.env.MAGIC_SECRET_KEY);
+const JWT_SECRET = process.env.JWT_SECRET;;
 
-// Register
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ message: 'All fields required' });
-    if (!email.endsWith('@wsu.edu') && !email.endsWith('@cougs.wsu.edu'))
-      return res.status(400).json({ message: 'Must use a WSU email (@wsu.edu or @cougs.wsu.edu)' });
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'Email already registered' });
-    const user = await User.create({ name, email, password });
-    const token = signToken(user._id);
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email } });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+// Add this route to check if user is logged in
+router.get('/me', auth, async (req, res) => {
+  res.json({ user: req.user });
 });
 
-// Login
-router.post('/login', async (req, res) => {
+// SINGLE LOGIN ROUTE (Handles both Login and Registration)
+router.post('/magic-login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid email or password' });
-    const match = await user.comparePassword(password);
-    if (!match) return res.status(400).json({ message: 'Invalid email or password' });
-    const token = signToken(user._id);
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+    // 1. Get the DID Token from request body OR header
+    let didToken = req.body.didToken;
+    
+    if (!didToken) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        didToken = authHeader.substring(7);
+      }
+    }
 
-// Get current user
-router.get('/me', authMiddleware, (req, res) => {
-  res.json(req.user);
-});
+    if (!didToken) {
+      return res.status(401).json({ message: 'No DID token provided' });
+    }
+    
+    // 2. Verify the token with Magic Admin SDK
+    const metadata = await magic.users.getMetadataByToken(didToken);
+    const email = metadata.email;
 
-// Update profile
-router.put('/profile', authMiddleware, async (req, res) => {
-  try {
-    const { name, bio } = req.body;
-    const user = await User.findByIdAndUpdate(req.user._id, { name, bio }, { new: true }).select('-password');
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    // 3. Security Check: Only allow WSU emails
+    if (!email.endsWith('@wsu.edu') && !email.endsWith('@cougs.wsu.edu')) {
+      return res.status(403).json({ message: 'Unauthorized email domain. Use @wsu.edu' });
+    }
+
+    // 4. Find or Create the User in your Database
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      user = await User.create({
+        email: email,
+        name: email.split('@')[0],
+      });
+    }
+
+    // 5. Issue a local JWT
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('Magic Login Error:', error);
+    res.status(500).json({ message: 'Authentication failed' });
   }
 });
 

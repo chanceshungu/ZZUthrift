@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API = 'http://localhost:8000/api';
+import api from '../api';
 
 function CreateListing() {
   const navigate = useNavigate();
@@ -29,10 +27,7 @@ function CreateListing() {
     setError('');
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API}/listings`, form, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/listings', form);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create listing');
