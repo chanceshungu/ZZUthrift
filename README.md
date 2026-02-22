@@ -195,12 +195,3 @@ http://localhost:5173
 * Report / moderation system
 * Push notifications
 * Mobile app version
-
----
-
-## License
-
-This project is for educational and portfolio purposes.
-
----
-
