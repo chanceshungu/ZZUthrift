@@ -1156,7 +1156,65 @@ body.dark .status-available { color: #5abf5a; }
 .contact-btn:hover { background: var(--crimson-dark); }
 .contact-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
 
-.detail-owner-notice,
+/* Owner action buttons in detail view */
+.detail-owner-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: auto;
+}
+
+.detail-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.detail-edit-btn:hover {
+  border-color: var(--crimson);
+  color: var(--crimson);
+}
+
+.detail-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--crimson-light);
+  color: var(--crimson);
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.detail-delete-btn:hover {
+  background: var(--crimson);
+  color: white;
+}
+
+.detail-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .detail-unavailable-notice {
   text-align: center;
   padding: 0.9rem;

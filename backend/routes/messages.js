@@ -34,7 +34,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
     })
       .populate('sender', 'name email')
       .populate('recipient', 'name email')
-      .populate('listing', 'title image')
+      .populate('listing', 'title images')
       .sort({ createdAt: -1 });
 
     // Group by listing + other user
@@ -48,7 +48,7 @@ router.get('/conversations', authMiddleware, async (req, res) => {
         convMap[key] = {
           listingId: msg.listing._id,
           listingTitle: msg.listing.title,
-          listingImage: msg.listing.image,
+          listingImage: msg.listing.images && msg.listing.images[0],
           otherUser: msg.sender._id.toString() === userId.toString() ? msg.recipient : msg.sender,
           lastMessage: msg.text,
           lastDate: msg.createdAt,

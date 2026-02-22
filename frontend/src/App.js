@@ -9,6 +9,7 @@ import ListingDetail from './pages/ListingDetail';
 import Profile from './pages/Profile';
 import Inbox from './pages/Inbox';
 import Conversation from './pages/Conversation';
+import EditListing from './pages/EditListing';
 import Saved from './pages/Saved';
 import './App.css';
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/listing/:id" element={<ListingDetail />} />
           <Route path="/create" element={<PrivateRoute><CreateListing /></PrivateRoute>} />
+          <Route path="/edit/:id" element={<PrivateRoute><EditListing /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/inbox" element={<PrivateRoute><Inbox /></PrivateRoute>} />
           <Route path="/conversation/:listingId/:otherUserId" element={<PrivateRoute><Conversation /></PrivateRoute>} />
